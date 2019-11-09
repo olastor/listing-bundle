@@ -103,6 +103,12 @@ class ModuleListing extends Module
 		$strOptions = '';
 		$strSearch = Input::get('search');
 		$strFor = Input::get('for');
+
+		$strFilter1 = Input::get('filter1');
+		$strFilter1For = Input::get('filter1For');
+		$strFilter2 = Input::get('filter2');
+		$strFilter2For = Input::get('filter2For');
+
 		$arrFields = StringUtil::trimsplit(',', $this->list_fields);
 		$arrSearchFields = StringUtil::trimsplit(',', $this->list_search);
 
@@ -118,10 +124,31 @@ class ModuleListing extends Module
 				$strFor = '';
 			}
 
+			if ($strFilter1 && !\in_array($strFilter1, $arrSearchFields, true)) {
+				$strFilter1 = '';
+				$strFilter1For = '';
+			}
+
+			if ($strFilter2 && !\in_array($strFilter2, $arrSearchFields, true)) {
+				$strFilter2 = '';
+				$strFilter2For = '';
+			}
+
+			$tempQueryBinder = (!$this->list_where ? " WHERE " : " AND ");
 			if ($strSearch && $strFor)
 			{
 				$varKeyword = '%' . $strFor . '%';
-				$strWhere = (!$this->list_where ? " WHERE " : " AND ") . Database::quoteIdentifier($strSearch) . " LIKE ?";
+				$strWhere = $tempQueryBinder . Database::quoteIdentifier($strSearch) . " LIKE ?";
+			}
+
+			if ($strFilter1 && $strFilter2) {
+				$strWhere .= $tempQueryBinder . Database::quoteIdentifier($strFilter1) . " = ?";
+				$tempQueryBinder = " AND ";
+			}
+
+			if ($strFilter2 && $strFilter2) {
+				$strWhere .= $tempQueryBinder . Database::quoteIdentifier($strFilter2) . " = ?";
+				$tempQueryBinder = " AND ";
 			}
 
 			foreach ($arrSearchFields as $field)
@@ -141,7 +168,7 @@ class ModuleListing extends Module
 		}
 
 		$strQuery .= $strWhere;
-		$objTotal = $this->Database->prepare($strQuery)->execute($varKeyword);
+		$objTotal = $this->Database->prepare($strQuery)->execute($varKeyword, $strFilter1For, $strFilter2For);
 
 		// Validate the page count
 		$id = 'page_l' . $this->id;
@@ -227,7 +254,7 @@ class ModuleListing extends Module
 			$objDataStmt->limit($this->perPage, (($page - 1) * $per_page));
 		}
 
-		$objData = $objDataStmt->execute($varKeyword);
+		$objData = $objDataStmt->execute($varKeyword, $strFilter1For, $strFilter2For);
 
 		// Prepare the URL
 		$strUrl = preg_replace('/\?.*$/', '', Environment::get('request'));
